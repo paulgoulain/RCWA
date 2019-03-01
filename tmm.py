@@ -1,33 +1,12 @@
-
 # coding: utf-8
 
 # transfer matrix method implemented as python
 # based on the notes byhttp://emlab.utep.edu/ee5390cem.htm
 import numpy as np
+import argparse
+import os
+import toml
 import cmath
-
-# UNITS
-DEGREES = np.pi/180
-
-# SOURCE PARAMETERS
-K0 = 1 # free space wavevector
-LAM0 = 2*np.pi/K0 #free space wavelength
-I = np.array(([1, 0], [0, 1])) # 2x2 identity matrix used in many places
-THETA = 57 * DEGREES #elevation angle
-PHI = 23 * DEGREES #azimuthal angle
-P_TE = 1/np.sqrt(2) #amplitude of TE polarization
-P_TM = 1j/np.sqrt(2) #amplitude of TM polarization
-
-# EXTERNAL MATERIALS
-UR1 = 1.2 #permeability in the reflection region
-ER1 = 1.4 #permittivity in the reflection region
-UR2 = 1.6 #permeability in the transmission region
-ER2 = 1.8 #permittivity in the transmission region
-
-# DEFINE LAYERS
-UR = np.array(([ 1, 3 ])) #array of permeabilities in each layer
-ER = np.array(([ 2, 1 ])) #array of permittivities in each layer
-L = np.array(([ 0.25*LAM0, 0.5*LAM0 ])) #array of the thickness of each lay
 
 def calc_gap_layer_params(kx, ky):
     ur = 1
@@ -60,7 +39,7 @@ def matmul(*args):
         count += 1
     return ret
 
-def calc_S_mat(L, ur, er, kx, ky):
+def calc_S_mat(L, ur, er, kx, ky, I, K0):
     Omegai, Vi = calc_layer_params(ur, er, kx, ky)
     Vg = calc_gap_layer_params(kx, ky)
     Ai = I + np.matmul(np.linalg.inv(Vi), Vg)
@@ -76,7 +55,7 @@ def calc_S_mat(L, ur, er, kx, ky):
                                np.concatenate((S_12, S_11), axis = 1)))
     return S
 
-def redheffer_star_prod(Sa_4x4, Sb_4x4):
+def redheffer_star_prod(Sa_4x4, Sb_4x4, I):
     Sa_11 = Sa_4x4[np.ix_([0, 1], [0, 1])]
     Sa_12 = Sa_4x4[np.ix_([0, 1], [2, 3])]
     Sa_21 = Sa_4x4[np.ix_([2, 3], [0, 1])]
@@ -99,7 +78,7 @@ def redheffer_star_prod(Sa_4x4, Sb_4x4):
                                np.concatenate((S_21, S_22), axis = 1)))
     return S_ret
 
-def calc_S_ref(ur, er, kx, ky):
+def calc_S_ref(ur, er, kx, ky, I):
     Omega_ref, V_ref = calc_layer_params(ur, er, kx, ky)
     Vg = calc_gap_layer_params(kx, ky)
     A_ref = I + matmul(np.linalg.inv(Vg), V_ref)
@@ -112,7 +91,7 @@ def calc_S_ref(ur, er, kx, ky):
                                 np.concatenate((S_ref_21, S_ref_22), axis = 1)))
     return S_ref
 
-def calc_S_trn(ur, er, kx, ky):
+def calc_S_trn(ur, er, kx, ky, I):
     Omega_trn, V_trn = calc_layer_params(ur, er, kx, ky)
     Vg = calc_gap_layer_params(kx, ky)
     A_trn = I + matmul(np.linalg.inv(Vg), V_trn)
@@ -125,41 +104,93 @@ def calc_S_trn(ur, er, kx, ky):
                                    np.concatenate((S_trn_21, S_trn_22), axis = 1)))
     return S_trn
 
-nr1 = np.sqrt(UR1*ER1)
-k_inc = K0*nr1*np.array(([np.sin(THETA)*np.cos(PHI), np.sin(THETA)*np.sin(PHI), np.cos(THETA)]))
-kx, ky = k_inc[0], k_inc[1]
-z_unit_vec = np.array(([0, 0, 1]))
-alpha_TE = np.cross(z_unit_vec, k_inc)
-alpha_TE = alpha_TE/np.linalg.norm(alpha_TE)
-alpha_TM = np.cross(alpha_TE, k_inc)
-alpha_TM = alpha_TM/np.linalg.norm(alpha_TM)
-E_inc = P_TM*alpha_TM + P_TE*alpha_TE
-c_inc = np.array(([E_inc[0], E_inc[1], 0, 0]))
 
-S_global = init_global_S_mat()
-# calc device S
-for i in range(0, len(UR)):
-    ur = UR[i]
-    er = ER[i]
-    l = L[i]
-    S_layer = calc_S_mat(l, ur, er, kx, ky)
-    S_global = redheffer_star_prod(S_global, S_layer)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path')
+    args = parser.parse_args()
+    if not os.path.exists(args.path):
+        raise FileNotFoundError('{} not a valid input file'.format(args.path))
 
-# calc refl S
-S_global = redheffer_star_prod(calc_S_ref(UR1, ER1, kx, ky), S_global)
+    input_toml = toml.load(args.path)
+    # UNITS
+    DEGREES = np.pi/180
 
-# calc trn S
-S_global = redheffer_star_prod(S_global, calc_S_trn(UR2, ER2, kx, ky))
+    # SOURCE PARAMETERS # TODO test for deviations from lambda = 2*pi
+    LAM0 = input_toml['source']['wavelength']
+    K0 = 2*np.pi/LAM0 # free space wavevector
+    I = np.array(([1, 0], [0, 1])) # 2x2 identity matrix used in many places
+    THETA = input_toml['source']['theta'] * DEGREES #elevation angle
+    PHI = input_toml['source']['phi'] * DEGREES #azimuthal angle
+    P_TE = input_toml['source']['te_amplitude'][0] + \
+            input_toml['source']['te_amplitude'][1]*1j #amplitude of TE polarization
+    P_TM = input_toml['source']['tm_amplitude'][0] + \
+            input_toml['source']['tm_amplitude'][1]*1j #amplitude of TM polarization
+    norm = np.sqrt((np.real(P_TE))**2 + (np.imag(P_TE))**2 + \
+    (np.real(P_TM))**2 + (np.imag(P_TM))**2)
+    P_TM = P_TM/norm
+    P_TE = P_TE/norm
 
-c_ret = matmul(S_global, c_inc)
-E_ref = np.array(([c_ret[0], c_ret[1], 0]))
-E_ref[2] = -(k_inc[0]*E_ref[0]+k_inc[1]*E_ref[1])/k_inc[2]
-k_trn = np.array(([k_inc[0], k_inc[1], 0]))
-nr2 = np.sqrt(ER2*UR2)
-k_trn[2] = np.sqrt(K0*K0*nr2*nr2 - k_trn[0]*k_trn[0] - k_trn[1]*k_trn[1])
-E_trn = np.array(([c_ret[2], c_ret[3], 0]))
-E_trn[2] = -(k_trn[0]*E_trn[0]+k_trn[1]*E_trn[1])/(k_trn[2])
-R = (np.linalg.norm(E_ref))**2
-T = (np.linalg.norm(E_trn))**2*((k_trn[2]/UR2).real)/((k_inc[2]/UR1).real)
+    # EXTERNAL MATERIALS
+    #permeability in the reflection region
+    UR1 = input_toml['superstrate']['mu']
+    #permittivity in the reflection region
+    ER1 = input_toml['superstrate']['epsilon']
+    #permeability in the transmission region
+    UR2 = input_toml['substrate']['mu']
+    #permittivity in the transmission region
+    ER2 = input_toml['substrate']['epsilon']
 
-print({'R': R, 'T': T, 'R+T': R+T})
+    # DEFINE LAYERS
+    num_layers = len(input_toml['layer'])
+    UR = [None]*num_layers
+    ER = [None]*num_layers
+    L = [None]*num_layers
+    for i in range(0, num_layers):
+        UR[i] = input_toml['layer'][i]['mu']
+        ER[i] = input_toml['layer'][i]['epsilon']
+        L[i] = input_toml['layer'][i]['thickness']
+
+    nr1 = np.sqrt(UR1*ER1)
+    k_inc = K0*nr1*np.array(([np.sin(THETA)*np.cos(PHI), np.sin(THETA)*np.sin(PHI), np.cos(THETA)]))
+    kx, ky = k_inc[0], k_inc[1]
+    z_unit_vec = np.array(([0, 0, 1]))
+    alpha_TE = np.cross(z_unit_vec, k_inc)
+    alpha_TE = alpha_TE/np.linalg.norm(alpha_TE)
+    alpha_TM = np.cross(alpha_TE, k_inc)
+    alpha_TM = alpha_TM/np.linalg.norm(alpha_TM)
+    E_inc = P_TM*alpha_TM + P_TE*alpha_TE
+    c_inc = np.array(([E_inc[0], E_inc[1], 0, 0]))
+
+    S_global = init_global_S_mat()
+    # calc device S
+    for i in range(0, len(UR)):
+        ur = UR[i]
+        er = ER[i]
+        l = L[i]
+        S_layer = calc_S_mat(l, ur, er, kx, ky, I, K0)
+        S_global = redheffer_star_prod(S_global, S_layer, I)
+
+    # calc refl S
+    S_global = redheffer_star_prod(calc_S_ref(UR1, ER1, kx, ky, I), S_global, I)
+
+    # calc trn S
+    S_global = redheffer_star_prod(S_global, calc_S_trn(UR2, ER2, kx, ky, I), I)
+
+    c_ret = matmul(S_global, c_inc)
+    E_ref = np.array(([c_ret[0], c_ret[1], 0]))
+    E_ref[2] = -(k_inc[0]*E_ref[0]+k_inc[1]*E_ref[1])/k_inc[2]
+    k_trn = np.array(([k_inc[0], k_inc[1], 0]))
+    nr2 = np.sqrt(ER2*UR2)
+    k_trn[2] = np.sqrt(K0*K0*nr2*nr2 - k_trn[0]*k_trn[0] - k_trn[1]*k_trn[1])
+    E_trn = np.array(([c_ret[2], c_ret[3], 0]))
+    E_trn[2] = -(k_trn[0]*E_trn[0]+k_trn[1]*E_trn[1])/(k_trn[2])
+    R = (np.linalg.norm(E_ref))**2
+    T = (np.linalg.norm(E_trn))**2*((k_trn[2]/UR2).real)/((k_inc[2]/UR1).real)
+
+    print({'R': R, 'T': T, 'R+T': R+T})
+
+if __name__ == '__main__':
+    main()
+
+
