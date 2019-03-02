@@ -7,6 +7,7 @@
 
 [source]
 wavelength = 6.2831853
+#wavelength = 1
 theta = 57
 phi = 23
 te_amplitude = [1, 0]

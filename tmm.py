@@ -113,12 +113,14 @@ def main():
         raise FileNotFoundError('{} not a valid input file'.format(args.path))
 
     input_toml = toml.load(args.path)
+    #print(input_toml)
     # UNITS
     DEGREES = np.pi/180
 
     # SOURCE PARAMETERS # TODO test for deviations from lambda = 2*pi
-    LAM0 = input_toml['source']['wavelength']
-    K0 = 2*np.pi/LAM0 # free space wavevector
+    norm_lambda = 2*np.pi/input_toml['source']['wavelength']
+    # free space wavevector; layer thickness normalised below
+    K0 = 1
     I = np.array(([1, 0], [0, 1])) # 2x2 identity matrix used in many places
     THETA = input_toml['source']['theta'] * DEGREES #elevation angle
     PHI = input_toml['source']['phi'] * DEGREES #azimuthal angle
@@ -126,10 +128,11 @@ def main():
             input_toml['source']['te_amplitude'][1]*1j #amplitude of TE polarization
     P_TM = input_toml['source']['tm_amplitude'][0] + \
             input_toml['source']['tm_amplitude'][1]*1j #amplitude of TM polarization
-    norm = np.sqrt((np.real(P_TE))**2 + (np.imag(P_TE))**2 + \
+    # normalise polarisation
+    norm_pol = np.sqrt((np.real(P_TE))**2 + (np.imag(P_TE))**2 + \
     (np.real(P_TM))**2 + (np.imag(P_TM))**2)
-    P_TM = P_TM/norm
-    P_TE = P_TE/norm
+    P_TM = P_TM/norm_pol
+    P_TE = P_TE/norm_pol
 
     # EXTERNAL MATERIALS
     #permeability in the reflection region
@@ -149,7 +152,7 @@ def main():
     for i in range(0, num_layers):
         UR[i] = input_toml['layer'][i]['mu']
         ER[i] = input_toml['layer'][i]['epsilon']
-        L[i] = input_toml['layer'][i]['thickness']
+        L[i] = input_toml['layer'][i]['thickness']*norm_lambda
 
     nr1 = np.sqrt(UR1*ER1)
     k_inc = K0*nr1*np.array(([np.sin(THETA)*np.cos(PHI), np.sin(THETA)*np.sin(PHI), np.cos(THETA)]))
@@ -185,10 +188,13 @@ def main():
     k_trn[2] = np.sqrt(K0*K0*nr2*nr2 - k_trn[0]*k_trn[0] - k_trn[1]*k_trn[1])
     E_trn = np.array(([c_ret[2], c_ret[3], 0]))
     E_trn[2] = -(k_trn[0]*E_trn[0]+k_trn[1]*E_trn[1])/(k_trn[2])
-    R = (np.linalg.norm(E_ref))**2
-    T = (np.linalg.norm(E_trn))**2*((k_trn[2]/UR2).real)/((k_inc[2]/UR1).real)
+    R = round((np.linalg.norm(E_ref))**2, 4)
+    T = round((np.linalg.norm(E_trn))**2*((k_trn[2]/UR2).real)/((k_inc[2]/UR1).real), 4)
 
     print({'R': R, 'T': T, 'R+T': R+T})
+    with open('output.toml', 'w') as fid:
+        output = {'output': {r'R': R, r'T': T, r'R+T': R+T}}
+        toml.dump(output, fid)
 
 if __name__ == '__main__':
     main()
