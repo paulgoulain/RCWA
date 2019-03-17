@@ -8,6 +8,8 @@ import cmath
 
 import toml
 import numpy as np
+
+from tmm_func import matmul, redheffer_star_prod
 #TODO add docstrings
 def calc_gap_layer_params(kx, ky):
     ur = 1
@@ -28,19 +30,6 @@ def init_global_s_mat():
                          [1, 0, 0, 0], [0, 1, 0, 0]))
     return s_global
 
-def matmul(*args):
-    if len(args) == 1 or len(args) == 0:
-        raise ValueError('Need at least two args')
-    count = 0
-    ret = None
-    for arg in args:
-        if count == 0:
-            ret = arg
-        else:
-            ret = np.matmul(ret, arg)
-        count += 1
-    return ret
-
 def calc_s_mat(layer_thickness, ur, er, kx, ky, unit_mat, k0):
     omegai_mat, vi_mat = calc_layer_params(ur, er, kx, ky)
     vg_mat = calc_gap_layer_params(kx, ky)
@@ -58,29 +47,6 @@ def calc_s_mat(layer_thickness, ur, er, kx, ky, unit_mat, k0):
     s_mat = np.concatenate((np.concatenate((s_11_mat, s_12_mat), axis=1),
                             np.concatenate((s_12_mat, s_11_mat), axis=1)))
     return s_mat
-
-def redheffer_star_prod(sa_4x4_mat, sb_4x4_mat, unit_mat):
-    sa_11_mat = sa_4x4_mat[np.ix_([0, 1], [0, 1])]
-    sa_12_mat = sa_4x4_mat[np.ix_([0, 1], [2, 3])]
-    sa_21_mat = sa_4x4_mat[np.ix_([2, 3], [0, 1])]
-    sa_22_mat = sa_4x4_mat[np.ix_([2, 3], [2, 3])]
-
-    sb_11_mat = sb_4x4_mat[np.ix_([0, 1], [0, 1])]
-    sb_12_mat = sb_4x4_mat[np.ix_([0, 1], [2, 3])]
-    sb_21_mat = sb_4x4_mat[np.ix_([2, 3], [0, 1])]
-    sb_22_mat = sb_4x4_mat[np.ix_([2, 3], [2, 3])]
-
-    d_mat = matmul(sa_12_mat, np.linalg.inv(unit_mat - matmul(sb_11_mat, sa_22_mat)))
-    f_mat = matmul(sb_21_mat, np.linalg.inv(unit_mat - matmul(sa_22_mat, sb_11_mat)))
-
-    s_11_mat = sa_11_mat + matmul(d_mat, sb_11_mat, sa_21_mat)
-    s_12_mat = matmul(d_mat, sb_12_mat)
-    s_21_mat = matmul(f_mat, sa_21_mat)
-    s_22_mat = sb_22_mat + matmul(f_mat, sa_22_mat, sb_12_mat)
-
-    s_ret_mat = np.concatenate((np.concatenate((s_11_mat, s_12_mat), axis=1),
-                                np.concatenate((s_21_mat, s_22_mat), axis=1)))
-    return s_ret_mat
 
 def calc_s_ref(ur, er, kx, ky, unit_mat):
     omega_ref_mat, v_ref_mat = calc_layer_params(ur, er, kx, ky)
