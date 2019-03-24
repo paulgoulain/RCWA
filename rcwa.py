@@ -46,13 +46,13 @@ def main():
     
     # DEVICE PARAMETERS
     # period in x
-    Lx = input_toml['common_to_all_layers']['period_x']*norm_lambda
+    Lx = input_toml['periodicity']['period_x']*norm_lambda
     # period in y
-    Ly = input_toml['common_to_all_layers']['period_y']*norm_lambda
+    Ly = input_toml['periodicity']['period_y']*norm_lambda
     # RCWA PARAMETERS
     # number of spatial harmonics along x and y
-    P_range = input_toml['common_to_all_layers']['harmonics_x']
-    Q_range = input_toml['common_to_all_layers']['harmonics_y']
+    P_range = input_toml['periodicity']['harmonics_x']
+    Q_range = input_toml['periodicity']['harmonics_y']
     P_high = int(np.floor(P_range/2))
     P_low = -P_high
     Q_high = int(np.floor(Q_range/2))
@@ -76,7 +76,7 @@ def main():
         L[i] = input_toml['layer'][i]['thickness']*norm_lambda
         ur_vec[i] = 1.0*np.ones((Nx, Ny))
         epsilon = input_toml['layer'][i]['epsilon']
-        if type(epsilon) == float:
+        if type(epsilon) == float or type(epsilon) == int:
             er_vec[i] = epsilon*np.ones((Nx, Ny))
         elif os.path.exists(epsilon):
             er_vec[i] = np.loadtxt(epsilon, delimiter=',')
@@ -273,7 +273,18 @@ def main():
     T /= np.real(k_inc[2]/UR2)
 
     np.set_printoptions(precision=4)
-    print(R, T, np.sum(R+T))
+
+    with open ('output.toml', 'w') as fid:
+        fid.write('[R]\n')
+        for i in range(0, Nharm):
+            fid.write('{:.0f}{:.0f} = '.format(P_vec[i%P_range], Q_vec[i//P_range]) + '{:.4f}\n'.format(R[i]))
+        fid.write('sum = {:.4f}\n'.format(np.sum(R)))
+        fid.write('\n[T]\n')
+        for i in range(0, Nharm):
+            fid.write('{:.0f}{:.0f} = '.format(P_vec[i%P_range], Q_vec[i//P_range]) + '{:.4f}\n'.format(T[i]))
+        fid.write('sum = {:.4f}\n'.format(np.sum(T)))
+        fid.write('\n[R_T]\n')
+        fid.write('sum = {:.4f}'.format(np.sum(R+T)))
 
 if __name__ == '__main__':
     main()

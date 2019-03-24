@@ -9,19 +9,15 @@
 
 [source]
 wavelength = 2.0
-theta = 60.0
-#theta = 0.00001
-phi = 30.0
-#phi = 0.00001
-te_amplitude = [0.70711, 0.0]
-#te_amplitude = [1.0, 0.0]
-tm_amplitude = [0.0, 0.70711]
-#tm_amplitude = [0.0, 0.0]
+theta = 0.00001
+phi = 0.00001
+te_amplitude = [1.0, 0.0]
+tm_amplitude = [0.0, 0.0]
 
 [superstrate]
-epsilon = 9.0
+epsilon = 2.0
 
-[common_to_all_layers]
+[periodicity]
 period_x = 1.75
 period_y = 1.5
 harmonics_x = 3
@@ -36,4 +32,4 @@ epsilon = 6.0
 thickness = 0.3
 
 [substrate]
-epsilon = 2.0
+epsilon = 9.0

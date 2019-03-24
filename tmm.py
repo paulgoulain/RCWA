@@ -171,8 +171,9 @@ def main():
     print({'ref_eff': ref_eff, 'trn_eff': trn_eff,
            'ref_eff+trn_eff': ref_eff+trn_eff})
     with open('output.toml', 'w') as fid:
-        output = {'output': {r'ref_eff': ref_eff, 'trn_eff': trn_eff,
-                             'ref_eff+trn_eff': ref_eff+trn_eff}}
+        fid.write('[R]\n00 = {:.4f}\n'.format(ref_eff))
+        fid.write('[T]\n00 = {:.4f}\n'.format(trn_eff))
+        fid.write('[R_T]\n00 = {:.4f}\n'.format(ref_eff + trn_eff))
         toml.dump(output, fid)
 
 if __name__ == '__main__':
