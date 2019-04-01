@@ -3,8 +3,7 @@ import numpy as np
 def convmat(A, P, Q = 1):
     Nx = A.shape[0]
     Ny = A.shape[1]
-    assert(P <= Nx), 'Cannot have more Fourier pts than real-space pts'
-    assert(Q <= Ny), 'Cannot have more Fourier pts than real-space pts'
+    assert(P <= Nx and Q <= Ny), 'Cannot have more Fourier pts than real-space pts'
         
     # comp. indices of spatial harmonics
     Nharmonics = P*Q

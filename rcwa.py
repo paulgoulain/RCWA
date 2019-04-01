@@ -53,6 +53,7 @@ def main():
     # number of spatial harmonics along x and y
     P_range = input_toml['periodicity']['harmonics_x']
     Q_range = input_toml['periodicity']['harmonics_y']
+    assert(P_range%2 == 1 and Q_range%2 == 1), 'harmonics_x and harmonics_y should both be odd'
     P_high = int(np.floor(P_range/2))
     P_low = -P_high
     Q_high = int(np.floor(Q_range/2))
@@ -86,33 +87,6 @@ def main():
     for i in range(0, num_layers):
         erc_vec[i] = convmat_func.convmat(er_vec[i], P_range, Q_range)
         urc_vec[i] = convmat_func.convmat(ur_vec[i], P_range, Q_range)
-
-    # TODO fix vectorisation in convmat
-    '''
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-
-    im1 = ax1.matshow(UR)
-    div1 = make_axes_locatable(ax1)
-    cax1 = div1.append_axes('right', size='20%', pad=0.05)
-    plt.colorbar(im1, cax=cax1)
-
-    im2 = ax2.matshow(ER)
-    div2 = make_axes_locatable(ax2)
-    cax2 = div2.append_axes('right', size='20%', pad=0.05)
-    plt.colorbar(im2, cax=cax2)
-
-    fig, (ax3, ax4) = plt.subplots(1, 2)
-
-    im3 = ax3.matshow(np.real(URC1))
-    div3 = make_axes_locatable(ax3)
-    cax3 = div3.append_axes('right', size='20%', pad=0.05)
-    plt.colorbar(im3, cax=cax3)
-
-    im4 = ax4.matshow(np.real(ERC1))
-    div4 = make_axes_locatable(ax4)
-    cax4 = div4.append_axes('right', size='20%', pad=0.05)
-    plt.colorbar(im4, cax=cax4)
-    '''
 
     # initialise parameters for the computation
     nr1 = np.sqrt(UR1*ER1)
