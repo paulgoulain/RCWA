@@ -3,19 +3,16 @@
 # rcwa method implemented as in
 # http://emlab.utep.edu/ee5390cem.htm
 # imports and steps 1-3
-import numpy as np
-#import matplotlib.pyplot as plt
-#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cmath
-import convmat_func as convmat_func
-import tmm_func as tmm_func
 import importlib
 import argparse
 import os
-import toml
 
-# UNITS
-DEGREES_TO_RAD = np.pi/180
+import toml
+import numpy as np
+
+import common as common
+from _constants import DEGREES_TO_RAD
 
 class Source:
     def __init__(self, input_toml):
@@ -28,6 +25,12 @@ class Source:
 
         self.P_TM = input_toml['source']['tm_amplitude'][0] + \
                 input_toml['source']['tm_amplitude'][1]*1j  # amplitude of TM polarization
+        # normalise polarisation
+        norm_pol = np.sqrt((np.real(self.P_TE))**2 + (np.imag(self.P_TE))**2 + \
+        (np.real(self.P_TM))**2 + (np.imag(self.P_TM))**2)
+        self.norm_P_TM = self.P_TM/norm_pol
+        self.norm_P_TE = self.P_TE/norm_pol
+
 
 class Structure:
     def __init__(self, input_toml, norm_lambda):
@@ -71,8 +74,8 @@ class Structure:
     
     def convmat(self, P_range, Q_range):
         for i in range(0, self.num_layers):
-            self.erc_vec[i] = convmat_func.convmat(self.er_vec[i], P_range, Q_range)
-            self.urc_vec[i] = convmat_func.convmat(self.ur_vec[i], P_range, Q_range)
+            self.erc_vec[i] = common.convmat(self.er_vec[i], P_range, Q_range)
+            self.urc_vec[i] = common.convmat(self.ur_vec[i], P_range, Q_range)
 
 class Harmonics():
     def __init__(self, input_toml):
@@ -160,14 +163,14 @@ class RCWA():
         zeros_big_mat = np.zeros((2*Nharm, 2*Nharm))
         self.W0_mat = np.diag(np.ones(2*Nharm))
         P0_mat = np.zeros((2*Nharm, 2*Nharm), dtype=complex)
-        P0_mat[0:Nharm, 0:Nharm] = tmm_func.matmul(self.kx_mat, self.ky_mat)
-        P0_mat[0:Nharm, Nharm:2*Nharm] = self.I_mat - tmm_func.matmul(self.kx_mat, self.kx_mat)
-        P0_mat[Nharm:2*Nharm, 0:Nharm] = tmm_func.matmul(self.ky_mat, self.ky_mat) - self.I_mat
-        P0_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -tmm_func.matmul(self.ky_mat, self.kx_mat)
+        P0_mat[0:Nharm, 0:Nharm] = common.matmul(self.kx_mat, self.ky_mat)
+        P0_mat[0:Nharm, Nharm:2*Nharm] = self.I_mat - common.matmul(self.kx_mat, self.kx_mat)
+        P0_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(self.ky_mat, self.ky_mat) - self.I_mat
+        P0_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(self.ky_mat, self.kx_mat)
         Q0_mat = P0_mat
         lambda0_mat = np.concatenate((np.concatenate((1j*kz_0_mat, self.zeros_mat), axis = 1),
                                        np.concatenate((self.zeros_mat, 1j*kz_0_mat), axis = 1)))
-        self.V0_mat = tmm_func.matmul(Q0_mat, np.linalg.inv(lambda0_mat))
+        self.V0_mat = common.matmul(Q0_mat, np.linalg.inv(lambda0_mat))
 
         S_global = np.concatenate((np.concatenate((zeros_big_mat, self.I_big_mat), axis = 1),
                                        np.concatenate((self.I_big_mat, zeros_big_mat), axis = 1)))
@@ -185,33 +188,33 @@ class RCWA():
             thickness = structure.L[i]
 
             P_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
-            P_mat[0:Nharm, 0:Nharm] = tmm_func.matmul(kx_mat, np.linalg.inv(ERC), ky_mat)
-            P_mat[0:Nharm, Nharm:2*Nharm] = URC - tmm_func.matmul(kx_mat, np.linalg.inv(ERC), kx_mat)
-            P_mat[Nharm:2*Nharm, 0:Nharm] = tmm_func.matmul(ky_mat, np.linalg.inv(ERC), ky_mat) - URC
-            P_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -tmm_func.matmul(ky_mat, np.linalg.inv(ERC), kx_mat)
+            P_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, np.linalg.inv(ERC), ky_mat)
+            P_mat[0:Nharm, Nharm:2*Nharm] = URC - common.matmul(kx_mat, np.linalg.inv(ERC), kx_mat)
+            P_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, np.linalg.inv(ERC), ky_mat) - URC
+            P_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, np.linalg.inv(ERC), kx_mat)
 
             Q_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
-            Q_mat[0:Nharm, 0:Nharm] = tmm_func.matmul(kx_mat, np.linalg.inv(URC), ky_mat)
-            Q_mat[0:Nharm, Nharm:2*Nharm] = ERC - tmm_func.matmul(kx_mat, np.linalg.inv(URC), kx_mat)
-            Q_mat[Nharm:2*Nharm, 0:Nharm] = tmm_func.matmul(ky_mat, np.linalg.inv(URC), ky_mat) - ERC
-            Q_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -tmm_func.matmul(ky_mat, np.linalg.inv(URC), kx_mat)
+            Q_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, np.linalg.inv(URC), ky_mat)
+            Q_mat[0:Nharm, Nharm:2*Nharm] = ERC - common.matmul(kx_mat, np.linalg.inv(URC), kx_mat)
+            Q_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, np.linalg.inv(URC), ky_mat) - ERC
+            Q_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, np.linalg.inv(URC), kx_mat)
 
-            Omega_sq_mat = tmm_func.matmul(P_mat, Q_mat)
+            Omega_sq_mat = common.matmul(P_mat, Q_mat)
             v_vec, W_mat = np.linalg.eig(Omega_sq_mat)
             lambda_mat = np.diag(np.conj(np.sqrt(v_vec)))
-            V_mat = tmm_func.matmul(Q_mat, W_mat, np.linalg.inv(lambda_mat))
-            A_mat = tmm_func.matmul(np.linalg.inv(W_mat), self.W0_mat) + tmm_func.matmul(np.linalg.inv(V_mat), self.V0_mat)
-            B_mat = tmm_func.matmul(np.linalg.inv(W_mat), self.W0_mat) - tmm_func.matmul(np.linalg.inv(V_mat), self.V0_mat)
+            V_mat = common.matmul(Q_mat, W_mat, np.linalg.inv(lambda_mat))
+            A_mat = common.matmul(np.linalg.inv(W_mat), self.W0_mat) + common.matmul(np.linalg.inv(V_mat), self.V0_mat)
+            B_mat = common.matmul(np.linalg.inv(W_mat), self.W0_mat) - common.matmul(np.linalg.inv(V_mat), self.V0_mat)
             X_mat = np.diag(np.exp(-np.diag(lambda_mat)*source.K0*thickness))
-            S_11 = tmm_func.matmul(np.linalg.inv(A_mat - tmm_func.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, B_mat)),
-                (tmm_func.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, A_mat)\
+            S_11 = common.matmul(np.linalg.inv(A_mat - common.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, B_mat)),
+                (common.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, A_mat)\
                 - B_mat))
-            S_12 = tmm_func.matmul(np.linalg.inv(A_mat - tmm_func.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, B_mat)),
-                X_mat, (A_mat - tmm_func.matmul(B_mat, np.linalg.inv(A_mat), B_mat)))
+            S_12 = common.matmul(np.linalg.inv(A_mat - common.matmul(X_mat, B_mat, np.linalg.inv(A_mat), X_mat, B_mat)),
+                X_mat, (A_mat - common.matmul(B_mat, np.linalg.inv(A_mat), B_mat)))
             S = np.concatenate((np.concatenate((S_11, S_12), axis = 1),
                                 np.concatenate((S_12, S_11), axis = 1)))
             
-            S_global = tmm_func.redheffer_star_prod(S_global, S, self.I_big_mat)
+            S_global = common.redheffer_star_prod(S_global, S, self.I_big_mat)
         return S_global
     
     def __compute_superstrate(self, structure, source, harmonics, S_global):
@@ -220,27 +223,27 @@ class RCWA():
         ky_mat = self.ky_mat
         # reflection region
         Q_ref_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
-        Q_ref_mat[0:Nharm, 0:Nharm] = tmm_func.matmul(kx_mat, ky_mat)
-        Q_ref_mat[0:Nharm, Nharm:2*Nharm] = structure.UR1*structure.ER1*self.I_mat - tmm_func.matmul(kx_mat, kx_mat)
-        Q_ref_mat[Nharm:2*Nharm, 0:Nharm] = tmm_func.matmul(ky_mat, ky_mat) - structure.UR1*structure.ER1*self.I_mat
-        Q_ref_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -tmm_func.matmul(ky_mat, kx_mat)
+        Q_ref_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, ky_mat)
+        Q_ref_mat[0:Nharm, Nharm:2*Nharm] = structure.UR1*structure.ER1*self.I_mat - common.matmul(kx_mat, kx_mat)
+        Q_ref_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR1*structure.ER1*self.I_mat
+        Q_ref_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, kx_mat)
         Q_ref_mat /= structure.UR1
 
         self.W_ref_mat = np.diag(np.ones(2*Nharm))
 
         lambda_ref_mat = np.concatenate((np.concatenate((-1j*self.kz_ref_mat, self.zeros_mat), axis = 1),
                                 np.concatenate((self.zeros_mat, -1j*self.kz_ref_mat), axis = 1)))
-        V_ref_mat = tmm_func.matmul(Q_ref_mat, np.linalg.inv(lambda_ref_mat))
-        A_ref_mat = tmm_func.matmul(np.linalg.inv(self.W0_mat), self.W_ref_mat) + tmm_func.matmul(np.linalg.inv(self.V0_mat), V_ref_mat)
-        B_ref_mat = tmm_func.matmul(np.linalg.inv(self.W0_mat), self.W_ref_mat) - tmm_func.matmul(np.linalg.inv(self.V0_mat), V_ref_mat)
-        S_ref_11 = -tmm_func.matmul(np.linalg.inv(A_ref_mat), B_ref_mat)
+        V_ref_mat = common.matmul(Q_ref_mat, np.linalg.inv(lambda_ref_mat))
+        A_ref_mat = common.matmul(np.linalg.inv(self.W0_mat), self.W_ref_mat) + common.matmul(np.linalg.inv(self.V0_mat), V_ref_mat)
+        B_ref_mat = common.matmul(np.linalg.inv(self.W0_mat), self.W_ref_mat) - common.matmul(np.linalg.inv(self.V0_mat), V_ref_mat)
+        S_ref_11 = -common.matmul(np.linalg.inv(A_ref_mat), B_ref_mat)
         S_ref_12 = 2*np.linalg.inv(A_ref_mat)
-        S_ref_21 = 0.5*(A_ref_mat - tmm_func.matmul(B_ref_mat, np.linalg.inv(A_ref_mat), B_ref_mat))
-        S_ref_22 = tmm_func.matmul(B_ref_mat, np.linalg.inv(A_ref_mat))
+        S_ref_21 = 0.5*(A_ref_mat - common.matmul(B_ref_mat, np.linalg.inv(A_ref_mat), B_ref_mat))
+        S_ref_22 = common.matmul(B_ref_mat, np.linalg.inv(A_ref_mat))
         S_ref = np.concatenate((np.concatenate((S_ref_11, S_ref_12), axis = 1),
                                 np.concatenate((S_ref_21, S_ref_22), axis = 1)))
 
-        S_global = tmm_func.redheffer_star_prod(S_ref, S_global, self.I_big_mat)
+        S_global = common.redheffer_star_prod(S_ref, S_global, self.I_big_mat)
         return S_global
 
     def __compute_substrate(self, structure, source, harmonics, S_global):
@@ -249,26 +252,26 @@ class RCWA():
         ky_mat = self.ky_mat
         # transmission region
         Q_trn_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
-        Q_trn_mat[0:Nharm, 0:Nharm] = tmm_func.matmul(kx_mat, ky_mat)
-        Q_trn_mat[0:Nharm, Nharm:2*Nharm] = structure.UR2*structure.ER2*self.I_mat - tmm_func.matmul(kx_mat, kx_mat)
-        Q_trn_mat[Nharm:2*Nharm, 0:Nharm] = tmm_func.matmul(ky_mat, ky_mat) - structure.UR2*structure.ER2*self.I_mat
-        Q_trn_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -tmm_func.matmul(ky_mat, kx_mat)
+        Q_trn_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, ky_mat)
+        Q_trn_mat[0:Nharm, Nharm:2*Nharm] = structure.UR2*structure.ER2*self.I_mat - common.matmul(kx_mat, kx_mat)
+        Q_trn_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR2*structure.ER2*self.I_mat
+        Q_trn_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, kx_mat)
         Q_trn_mat /= structure.UR2
 
         self.W_trn_mat = np.diag(np.ones(2*Nharm))
         lambda_trn_mat = np.concatenate((np.concatenate((1j*self.kz_trn_mat, self.zeros_mat), axis = 1),
                                 np.concatenate((self.zeros_mat, 1j*self.kz_trn_mat), axis = 1)))
-        V_trn_mat = tmm_func.matmul(Q_trn_mat, np.linalg.inv(lambda_trn_mat))
-        A_trn_mat = tmm_func.matmul(np.linalg.inv(self.W0_mat), self.W_trn_mat) + tmm_func.matmul(np.linalg.inv(self.V0_mat), V_trn_mat)
-        B_trn_mat = tmm_func.matmul(np.linalg.inv(self.W0_mat), self.W_trn_mat) - tmm_func.matmul(np.linalg.inv(self.V0_mat), V_trn_mat)
+        V_trn_mat = common.matmul(Q_trn_mat, np.linalg.inv(lambda_trn_mat))
+        A_trn_mat = common.matmul(np.linalg.inv(self.W0_mat), self.W_trn_mat) + common.matmul(np.linalg.inv(self.V0_mat), V_trn_mat)
+        B_trn_mat = common.matmul(np.linalg.inv(self.W0_mat), self.W_trn_mat) - common.matmul(np.linalg.inv(self.V0_mat), V_trn_mat)
 
-        S_trn_11 = tmm_func.matmul(B_trn_mat, np.linalg.inv(A_trn_mat))
-        S_trn_12 = 0.5*(A_trn_mat - tmm_func.matmul(B_trn_mat, np.linalg.inv(A_trn_mat), B_trn_mat))
+        S_trn_11 = common.matmul(B_trn_mat, np.linalg.inv(A_trn_mat))
+        S_trn_12 = 0.5*(A_trn_mat - common.matmul(B_trn_mat, np.linalg.inv(A_trn_mat), B_trn_mat))
         S_trn_21 = 2*np.linalg.inv(A_trn_mat)
-        S_trn_22 = -tmm_func.matmul(np.linalg.inv(A_trn_mat), B_trn_mat)
+        S_trn_22 = -common.matmul(np.linalg.inv(A_trn_mat), B_trn_mat)
         S_trn = np.concatenate((np.concatenate((S_trn_11, S_trn_12), axis = 1),
                                 np.concatenate((S_trn_21, S_trn_22), axis = 1)))
-        S_global = tmm_func.redheffer_star_prod(S_global, S_trn, self.I_big_mat)
+        S_global = common.redheffer_star_prod(S_global, S_trn, self.I_big_mat)
         return S_global
 
     def __get_R_T(self, structure, source, harmonics, S_global):
@@ -284,11 +287,11 @@ class RCWA():
         E_inc = np.zeros(2*Nharm, dtype=complex)
         E_inc[0:Nharm] = (source.P_TM*alpha_TM + source.P_TE*alpha_TE)[0]*delta_vec
         E_inc[Nharm:2*Nharm] = (source.P_TM*alpha_TM + source.P_TE*alpha_TE)[1]*delta_vec
-        c_inc = tmm_func.matmul(np.linalg.inv(self.W_ref_mat), E_inc)
-        E_ref_xy = tmm_func.matmul(self.W_ref_mat, S_global[0:2*Nharm, 0:2*Nharm], c_inc)
-        E_trn_xy = tmm_func.matmul(self.W_trn_mat, S_global[2*Nharm:4*Nharm, 0:2*Nharm], c_inc)
-        E_ref_z = -tmm_func.matmul(np.linalg.inv(self.kz_ref_mat), tmm_func.matmul(self.kx_mat, E_ref_xy[0:Nharm]) + tmm_func.matmul(self.ky_mat, E_ref_xy[Nharm:2*Nharm]))
-        E_trn_z = -tmm_func.matmul(np.linalg.inv(self.kz_trn_mat), tmm_func.matmul(self.kx_mat, E_trn_xy[0:Nharm]) + tmm_func.matmul(self.ky_mat, E_trn_xy[Nharm:2*Nharm]))
+        c_inc = common.matmul(np.linalg.inv(self.W_ref_mat), E_inc)
+        E_ref_xy = common.matmul(self.W_ref_mat, S_global[0:2*Nharm, 0:2*Nharm], c_inc)
+        E_trn_xy = common.matmul(self.W_trn_mat, S_global[2*Nharm:4*Nharm, 0:2*Nharm], c_inc)
+        E_ref_z = -common.matmul(np.linalg.inv(self.kz_ref_mat), common.matmul(self.kx_mat, E_ref_xy[0:Nharm]) + common.matmul(self.ky_mat, E_ref_xy[Nharm:2*Nharm]))
+        E_trn_z = -common.matmul(np.linalg.inv(self.kz_trn_mat), common.matmul(self.kx_mat, E_trn_xy[0:Nharm]) + common.matmul(self.ky_mat, E_trn_xy[Nharm:2*Nharm]))
 
         r_sq = np.zeros((Nharm), dtype=complex)
         t_sq = np.zeros((Nharm), dtype=complex)
@@ -296,10 +299,10 @@ class RCWA():
             r_sq[i] = E_ref_xy[i]*np.conj(E_ref_xy[i]) + E_ref_xy[Nharm+i]*np.conj(E_ref_xy[Nharm+i]) + E_ref_z[i]*np.conj(E_ref_z[i])
             t_sq[i] = E_trn_xy[i]*np.conj(E_trn_xy[i]) + E_trn_xy[Nharm+i]*np.conj(E_trn_xy[Nharm+i]) + E_trn_z[i]*np.conj(E_trn_z[i])
 
-        R = -np.real(tmm_func.matmul(self.kz_ref_mat, r_sq)/structure.UR1)
+        R = -np.real(common.matmul(self.kz_ref_mat, r_sq)/structure.UR1)
         R /= np.real(self.k_inc[2]/structure.UR1)#
 
-        T = np.real(tmm_func.matmul(self.kz_trn_mat, t_sq)/structure.UR2)
+        T = np.real(common.matmul(self.kz_trn_mat, t_sq)/structure.UR2)
         T /= np.real(self.k_inc[2]/structure.UR2)
         return R, T
 
