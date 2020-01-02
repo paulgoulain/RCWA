@@ -9,30 +9,10 @@ import cmath
 import toml
 import numpy as np
 
-from common import matmul, redheffer_star_prod
-from rcwa import get_input, Source
+from common import matmul, redheffer_star_prod, get_input
+from structure import HomogeneousStructure
+from source import Source
 from _constants import UNIT_MAT_2D
-
-class Structure:
-    def __init__(self, input_toml, norm_lambda):
-        # permeability in the reflection region
-        self.UR1 = input_toml['superstrate']['mu']
-        # permittivity in the reflection region
-        self.ER1 = input_toml['superstrate']['epsilon']
-        # permeability in the transmission region
-        self.UR2 = input_toml['substrate']['mu']
-        # permittivity in the transmission region
-        self.ER2 = input_toml['substrate']['epsilon']
-        # define layers
-        
-        self.num_layers = len(input_toml['layer'])
-        self.ur_vec = [None]*self.num_layers
-        self.er_vec = [None]*self.num_layers
-        self.layer_thicknesses_vec = [None]*self.num_layers
-        for i in range(0, self.num_layers):
-            self.ur_vec[i] = input_toml['layer'][i]['mu']
-            self.er_vec[i] = input_toml['layer'][i]['epsilon']
-            self.layer_thicknesses_vec[i] = input_toml['layer'][i]['thickness']*norm_lambda
 
 def save_outputs(R, T):
     with open('output.toml', 'w') as fid:
@@ -164,7 +144,7 @@ class TMM():
 def main():
     input_toml = get_input()
     source = Source(input_toml)
-    structure = Structure(input_toml, source.norm_lambda)
+    structure = HomogeneousStructure(input_toml, source.norm_lambda)
     tmm = TMM()
     R, T = tmm.compute(structure, source)
     save_outputs(R, T)

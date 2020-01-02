@@ -5,77 +5,12 @@
 # imports and steps 1-3
 import cmath
 import importlib
-import argparse
-import os
 
-import toml
 import numpy as np
 
 import common as common
-from _constants import DEGREES_TO_RAD
-
-class Source:
-    def __init__(self, input_toml):
-        self.norm_lambda = 2*np.pi/input_toml['source']['wavelength']
-        self.K0 = 1
-        self.THETA = input_toml['source']['theta'] * DEGREES_TO_RAD
-        self.PHI = input_toml['source']['phi'] * DEGREES_TO_RAD
-        self.P_TE = input_toml['source']['te_amplitude'][0] + \
-                input_toml['source']['te_amplitude'][1]*1j  # amplitude of TE polarization
-
-        self.P_TM = input_toml['source']['tm_amplitude'][0] + \
-                input_toml['source']['tm_amplitude'][1]*1j  # amplitude of TM polarization
-        # normalise polarisation
-        norm_pol = np.sqrt((np.real(self.P_TE))**2 + (np.imag(self.P_TE))**2 + \
-        (np.real(self.P_TM))**2 + (np.imag(self.P_TM))**2)
-        self.norm_P_TM = self.P_TM/norm_pol
-        self.norm_P_TE = self.P_TE/norm_pol
-
-
-class Structure:
-    def __init__(self, input_toml, norm_lambda):
-        # permeability in the reflection region
-        self.UR2 = 1.0
-        # permittivity in the reflection region
-        self.ER2 = input_toml['superstrate']['epsilon']
-        # permeability in the transmission region
-        self.UR1 = 1.0
-        # permittivity in the transmission region
-        self.ER1 = input_toml['substrate']['epsilon']
-        
-        # period in x
-        self.Lx = input_toml['periodicity']['period_x']*norm_lambda
-        # period in y
-        self.Ly = input_toml['periodicity']['period_y']*norm_lambda
-        
-        # BUILD DEVICE LAYERS ON HIGH RESOLUTION GRID
-        #number of point along x in real-space grid
-        self.Nx = 512
-        #number of point along y in real-space grid
-        self.Ny = int(np.ceil((self.Nx*self.Ly/self.Lx)))
-    
-        self.num_layers = len(input_toml['layer'])
-        self.L = [None]*self.num_layers
-        self.er_vec = [None]*self.num_layers
-        self.ur_vec = [None]*self.num_layers
-        self.erc_vec = [None]*self.num_layers
-        self.urc_vec = [None]*self.num_layers
-
-        for i in range(0, self.num_layers):
-            self.L[i] = input_toml['layer'][i]['thickness']*norm_lambda
-            self.ur_vec[i] = 1.0*np.ones((self.Nx, self.Ny))
-            epsilon = input_toml['layer'][i]['epsilon']
-            if type(epsilon) == float or type(epsilon) == int:
-                self.er_vec[i] = epsilon*np.ones((self.Nx, self.Ny))
-            elif os.path.exists(epsilon):
-                self.er_vec[i] = np.loadtxt(epsilon, delimiter=',')
-            else:
-                raise ValueError('Invalid epsilon for layer {} - should be a float or a path to .csv file'.format(i))
-    
-    def convmat(self, P_range, Q_range):
-        for i in range(0, self.num_layers):
-            self.erc_vec[i] = common.convmat(self.er_vec[i], P_range, Q_range)
-            self.urc_vec[i] = common.convmat(self.ur_vec[i], P_range, Q_range)
+from source import Source
+from structure import PeriodicStructure
 
 class Harmonics():
     def __init__(self, input_toml):
@@ -90,16 +25,6 @@ class Harmonics():
         self.P_vec = np.linspace(self.P_low, self.P_high, self.P_range)
         self.Q_vec = np.linspace(self.Q_low, self.Q_high, self.Q_range)
         self.Nharm = self.P_range*self.Q_range
-
-def get_input():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('path') 
-    args = parser.parse_args()
-    if not os.path.exists(args.path):
-        raise FileNotFoundError('{} not a valid input file'.format(args.path))
-
-    input_toml = toml.load(args.path)
-    return input_toml
 
 def save_outputs(P_vec, Q_vec, R, T, P_range, Q_range, Nharm):
     np.set_printoptions(precision=4)
@@ -119,7 +44,7 @@ def save_outputs(P_vec, Q_vec, R, T, P_range, Q_range, Nharm):
 class RCWA():
     def compute(self, structure, source, harmonics):
         '''calculate results using inputs'''
-        structure.convmat(harmonics.P_range, harmonics.Q_range)
+        structure.set_convmat(harmonics.P_range, harmonics.Q_range)
         S_global = self.__prepare(structure, source, harmonics)
         S_global = self.__compute_layers(structure, source, harmonics, S_global)
         S_global = self.__compute_superstrate(structure, source, harmonics, S_global)
@@ -130,11 +55,11 @@ class RCWA():
     def __prepare(self, structure, source, harmonics):
         # initialise parameters for the computation
         Nharm = harmonics.Nharm
-        nr1 = np.sqrt(structure.UR1*structure.ER1)
+        nr1 = np.sqrt(structure.UR2*structure.ER2)
         self.k_inc = source.K0*nr1*np.array(([np.sin(source.THETA)*np.cos(source.PHI), np.sin(source.THETA)*np.sin(source.PHI), np.cos(source.THETA)]))
         self.k_inc /= source.K0
         self.k_ref = np.array(([self.k_inc[0], self.k_inc[1], -self.k_inc[2]]))
-        nr2 = np.sqrt(structure.UR2*structure.ER2)
+        nr2 = np.sqrt(structure.UR1*structure.ER1)
         self.k_trn = np.array(([self.k_ref[0], self.k_ref[1], 0]))
         self.k_trn[2] = np.sqrt(source.K0*source.K0*nr2*nr2 - self.k_trn[0]*self.k_trn[0] - self.k_trn[1]*self.k_trn[1])
 
@@ -154,8 +79,8 @@ class RCWA():
                 self.kx_mat[pos, pos] = self.k_inc[0] - j*2*np.pi/(structure.Lx*source.K0)
                 self.ky_mat[pos, pos] = self.k_inc[1] - i*2*np.pi/(structure.Ly*source.K0)
                 kz_0_mat[pos, pos] = np.conj(np.lib.scimath.sqrt(1 - (self.kx_mat[pos,pos])**2 - (self.ky_mat[pos,pos])**2))
-                self.kz_ref_mat[pos, pos] = -np.conj(np.lib.scimath.sqrt(np.conj(structure.ER1)*np.conj(structure.UR1)-self.kx_mat[pos,pos]**2-self.ky_mat[pos,pos]**2))
-                self.kz_trn_mat[pos, pos] = np.conj(np.lib.scimath.sqrt(np.conj(structure.ER2)*np.conj(structure.UR2)-self.kx_mat[pos,pos]**2-self.ky_mat[pos,pos]**2))
+                self.kz_ref_mat[pos, pos] = -np.conj(np.lib.scimath.sqrt(np.conj(structure.ER2)*np.conj(structure.UR2)-self.kx_mat[pos,pos]**2-self.ky_mat[pos,pos]**2))
+                self.kz_trn_mat[pos, pos] = np.conj(np.lib.scimath.sqrt(np.conj(structure.ER1)*np.conj(structure.UR1)-self.kx_mat[pos,pos]**2-self.ky_mat[pos,pos]**2))
 
         self.I_mat = np.diag(np.ones(Nharm))
         self.I_big_mat = np.diag(np.ones(2*Nharm))
@@ -175,7 +100,6 @@ class RCWA():
         S_global = np.concatenate((np.concatenate((zeros_big_mat, self.I_big_mat), axis = 1),
                                        np.concatenate((self.I_big_mat, zeros_big_mat), axis = 1)))
         return S_global
-    
 
     def __compute_layers(self, structure, source, harmonics, S_global):
         Nharm = harmonics.Nharm
@@ -224,10 +148,10 @@ class RCWA():
         # reflection region
         Q_ref_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
         Q_ref_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, ky_mat)
-        Q_ref_mat[0:Nharm, Nharm:2*Nharm] = structure.UR1*structure.ER1*self.I_mat - common.matmul(kx_mat, kx_mat)
-        Q_ref_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR1*structure.ER1*self.I_mat
+        Q_ref_mat[0:Nharm, Nharm:2*Nharm] = structure.UR2*structure.ER2*self.I_mat - common.matmul(kx_mat, kx_mat)
+        Q_ref_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR2*structure.ER2*self.I_mat
         Q_ref_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, kx_mat)
-        Q_ref_mat /= structure.UR1
+        Q_ref_mat /= structure.UR2
 
         self.W_ref_mat = np.diag(np.ones(2*Nharm))
 
@@ -253,10 +177,10 @@ class RCWA():
         # transmission region
         Q_trn_mat = np.zeros((2*Nharm, 2*Nharm), dtype = complex)
         Q_trn_mat[0:Nharm, 0:Nharm] = common.matmul(kx_mat, ky_mat)
-        Q_trn_mat[0:Nharm, Nharm:2*Nharm] = structure.UR2*structure.ER2*self.I_mat - common.matmul(kx_mat, kx_mat)
-        Q_trn_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR2*structure.ER2*self.I_mat
+        Q_trn_mat[0:Nharm, Nharm:2*Nharm] = structure.UR1*structure.ER1*self.I_mat - common.matmul(kx_mat, kx_mat)
+        Q_trn_mat[Nharm:2*Nharm, 0:Nharm] = common.matmul(ky_mat, ky_mat) - structure.UR1*structure.ER1*self.I_mat
         Q_trn_mat[Nharm:2*Nharm, Nharm:2*Nharm] = -common.matmul(ky_mat, kx_mat)
-        Q_trn_mat /= structure.UR2
+        Q_trn_mat /= structure.UR1
 
         self.W_trn_mat = np.diag(np.ones(2*Nharm))
         lambda_trn_mat = np.concatenate((np.concatenate((1j*self.kz_trn_mat, self.zeros_mat), axis = 1),
@@ -299,17 +223,17 @@ class RCWA():
             r_sq[i] = E_ref_xy[i]*np.conj(E_ref_xy[i]) + E_ref_xy[Nharm+i]*np.conj(E_ref_xy[Nharm+i]) + E_ref_z[i]*np.conj(E_ref_z[i])
             t_sq[i] = E_trn_xy[i]*np.conj(E_trn_xy[i]) + E_trn_xy[Nharm+i]*np.conj(E_trn_xy[Nharm+i]) + E_trn_z[i]*np.conj(E_trn_z[i])
 
-        R = -np.real(common.matmul(self.kz_ref_mat, r_sq)/structure.UR1)
-        R /= np.real(self.k_inc[2]/structure.UR1)#
+        R = -np.real(common.matmul(self.kz_ref_mat, r_sq)/structure.UR2)
+        R /= np.real(self.k_inc[2]/structure.UR2)#
 
-        T = np.real(common.matmul(self.kz_trn_mat, t_sq)/structure.UR2)
-        T /= np.real(self.k_inc[2]/structure.UR2)
+        T = np.real(common.matmul(self.kz_trn_mat, t_sq)/structure.UR1)
+        T /= np.real(self.k_inc[2]/structure.UR1)
         return R, T
 
 def main():
-    input_toml = get_input()
+    input_toml = common.get_input()
     source = Source(input_toml)
-    structure = Structure(input_toml, source.norm_lambda)
+    structure = PeriodicStructure(input_toml, source.norm_lambda)
     harmonics = Harmonics(input_toml)
     rcwa = RCWA()
     R, T = rcwa.compute(structure, source, harmonics)
