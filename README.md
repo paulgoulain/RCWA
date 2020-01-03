@@ -1,6 +1,7 @@
 # RCWA
-Simple implementation of transfer matrix method and
-rigorous coupled wave analysis
+Simple implementation of transfer matrix method (TMM) and
+rigorous coupled wave analysis (RCWA) based on the notes from Computational Electromagnetics Course by Raymond Rumpf: https://empossible.net/academics/emp5337/ (formerly: http://emlab.utep.edu/ee5390cem.htm)
+
 
 ## Getting Started
 Before running any calculations of your own it is recommended to run

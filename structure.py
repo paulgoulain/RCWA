@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 
-import common as common
-
 class HomogeneousStructure:
+    '''Structure for TMM; has only uniform layers;
+    those can have non-trivial epsilon and mu values'''
     def __init__(self, input_toml, norm_lambda):
         self._set_epsilon(input_toml)
         self._set_mu(input_toml)
@@ -34,6 +34,8 @@ class HomogeneousStructure:
             self.layer_thicknesses_vec[i] = input_toml['layer'][i]['thickness']*norm_lambda
 
 class PeriodicStructure(HomogeneousStructure):
+    '''Structure for RCWA; can have uniform and periodic layers;
+    requires mu = 1 for all layers'''
     def __init__(self, input_toml, norm_lambda):
         self._set_epsilon(input_toml)
         self._set_mu()
@@ -44,7 +46,7 @@ class PeriodicStructure(HomogeneousStructure):
         self.UR1 = 1.0
         # permeability in the transmission region
         self.UR2 = 1.0
-        
+
     def _set_layers(self, input_toml, norm_lambda):
         # period in x
         self.Lx = input_toml['periodicity']['period_x']*norm_lambda
@@ -55,7 +57,7 @@ class PeriodicStructure(HomogeneousStructure):
         self.Nx = 512
         #number of point along y in real-space grid
         self.Ny = int(np.ceil((self.Nx*self.Ly/self.Lx)))
-    
+
         self.num_layers = len(input_toml['layer'])
         self.L = [None]*self.num_layers
         self.er_vec = [None]*self.num_layers
@@ -71,35 +73,35 @@ class PeriodicStructure(HomogeneousStructure):
                 self.er_vec[i] = np.loadtxt(epsilon, delimiter=',')
             else:
                 raise ValueError('Invalid epsilon for layer {} - should be a float or a path to .csv file'.format(i))
-    
+
     def set_convmat(self, P_range, Q_range):
         self.erc_vec = [None]*self.num_layers
         self.urc_vec = [None]*self.num_layers
         for i in range(0, self.num_layers):
             self.erc_vec[i] = self.convmat(self.er_vec[i], P_range, Q_range)
             self.urc_vec[i] = self.convmat(self.ur_vec[i], P_range, Q_range)
-    
+
     @staticmethod
-    def convmat(A, P, Q = 1):
+    def convmat(A, P, Q=1):
         Nx = A.shape[0]
         Ny = A.shape[1]
         assert(P <= Nx and Q <= Ny), 'Cannot have more Fourier pts than real-space pts'
-            
+
         # comp. indices of spatial harmonics
         Nharmonics = P*Q
         p = range(-int(np.floor(P/2)), int(np.floor(P/2))+1)
         q = range(-int(np.floor(Q/2)), int(np.floor(Q/2))+1)
-        
+
         # do fft
         A = np.fft.fft2(A)/(Nx*Ny) # TODO change depending on 1D or 2D
-        A = np.fft.fftshift(A) 
-        
+        A = np.fft.fftshift(A)
+
         # locate zeroth harmonics
         p0 = int(np.floor(Nx/2))
         q0 = int(np.floor(Ny/2))
-        
+
         # calc the convolutoiin matrix
-        ret = np.zeros((Nharmonics, Nharmonics), dtype = complex)
+        ret = np.zeros((Nharmonics, Nharmonics), dtype=complex)
         # TODO vectorize
         for qrow in range(0, Q):
             for prow in range(0, P):

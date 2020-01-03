@@ -5,6 +5,7 @@ import numpy as np
 import toml
 
 def matmul(*args):
+    '''helper function that accepts an arbitrary number of matrices to multiply'''
     if len(args) == 1 or len(args) == 0:
         raise ValueError('Need at least two args')
     count = 0
@@ -43,7 +44,7 @@ def redheffer_star_prod(sa_mat, sb_mat, unit_mat):
 
 def get_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('path') 
+    parser.add_argument('path')
     args = parser.parse_args()
     if not os.path.exists(args.path):
         raise FileNotFoundError('{} not a valid input file'.format(args.path))

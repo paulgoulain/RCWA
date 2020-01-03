@@ -1,12 +1,6 @@
 # coding: utf-8
-
-# transfer matrix method implemented as python
-# based on the notes byhttp://emlab.utep.edu/ee5390cem.htm
-import argparse
-import os
 import cmath
 
-import toml
 import numpy as np
 
 from common import matmul, redheffer_star_prod, get_input
@@ -21,10 +15,12 @@ def save_outputs(R, T):
         fid.write('[R_T]\n00 = {:.4f}\n'.format(R + T))
 
 class TMM():
+    '''Calculates transmission through a stack of uniform layers'''
     def __prepare(self, structure, source):
         nr1 = np.sqrt(structure.UR1*structure.ER1)
-        self.k_inc = source.K0*nr1*np.array(([np.sin(source.THETA)*np.cos(source.PHI),
-                                  np.sin(source.THETA)*np.sin(source.PHI), np.cos(source.THETA)]))
+        self.k_inc = source.K0*nr1*\
+                     np.array(([np.sin(source.THETA)*np.cos(source.PHI),
+                                np.sin(source.THETA)*np.sin(source.PHI), np.cos(source.THETA)]))
         S_global = np.array(([0, 0, 1, 0], [0, 0, 0, 1],
                              [1, 0, 0, 0], [0, 1, 0, 0]))
         return S_global
@@ -32,8 +28,8 @@ class TMM():
     def compute(self, structure, source):
         S_global = self.__prepare(structure, source)
         S_global = self.__compute_layers(structure, source, S_global)
-        S_global = self.__compute_superstrate(structure, source, S_global)
-        S_global = self.__compute_substrate(structure, source, S_global)
+        S_global = self.__compute_superstrate(structure, S_global)
+        S_global = self.__compute_substrate(structure, S_global)
         R, T = self.__get_R_T(structure, source, S_global)
         return R, T
 
@@ -44,7 +40,7 @@ class TMM():
             ur = structure.ur_vec[i]
             er = structure.er_vec[i]
             l = structure.layer_thicknesses_vec[i]
-            s_layer_mat = self.__calc_s_mat(l, ur, er, kx, ky, UNIT_MAT_2D, source.K0)
+            s_layer_mat = self.__calc_s_mat(l, ur, er, kx, ky, source.K0)
             S_global = redheffer_star_prod(S_global, s_layer_mat, UNIT_MAT_2D)
         return S_global
     @staticmethod
@@ -63,7 +59,7 @@ class TMM():
         v_mat = np.matmul(q_mat, np.linalg.inv(omega_mat))
         return omega_mat, v_mat
 
-    def __calc_s_mat(self, layer_thickness, ur, er, kx, ky, UNIT_MAT_2D, K0):
+    def __calc_s_mat(self, layer_thickness, ur, er, kx, ky, K0):
         omegai_mat, vi_mat = self.__calc_layer_params(ur, er, kx, ky)
         vg_mat = self.__calc_gap_layer_params(kx, ky)
         ai_mat = UNIT_MAT_2D + np.matmul(np.linalg.inv(vi_mat), vg_mat)
@@ -80,11 +76,11 @@ class TMM():
         s_mat = np.concatenate((np.concatenate((s_11_mat, s_12_mat), axis=1),
                                 np.concatenate((s_12_mat, s_11_mat), axis=1)))
         return s_mat
-    
-    def __compute_superstrate(self, structure, source, S_global):
+
+    def __compute_superstrate(self, structure, S_global):
         kx, ky = self.k_inc[0], self.k_inc[1]
         # take superstrate into account
-        omega_ref_mat, v_ref_mat = self.__calc_layer_params(structure.UR1, structure.ER1, kx, ky)
+        _, v_ref_mat = self.__calc_layer_params(structure.UR1, structure.ER1, kx, ky)
         vg_mat = self.__calc_gap_layer_params(kx, ky)
         a_ref_mat = UNIT_MAT_2D + matmul(np.linalg.inv(vg_mat), v_ref_mat)
         b_ref_mat = UNIT_MAT_2D - matmul(np.linalg.inv(vg_mat), v_ref_mat)
@@ -99,10 +95,10 @@ class TMM():
         S_global = redheffer_star_prod(s_ref_mat, S_global, UNIT_MAT_2D)
         return S_global
 
-    def __compute_substrate(self, structure, source, S_global):
+    def __compute_substrate(self, structure, S_global):
         kx, ky = self.k_inc[0], self.k_inc[1]
         # take substrate into account
-        omega_trn_mat, v_trn_mat = self.__calc_layer_params(structure.UR2, structure.ER2, kx, ky)
+        _, v_trn_mat = self.__calc_layer_params(structure.UR2, structure.ER2, kx, ky)
         vg_mat = self.__calc_gap_layer_params(kx, ky)
         a_trn_mat = UNIT_MAT_2D + matmul(np.linalg.inv(vg_mat), v_trn_mat)
         b_trn_mat = UNIT_MAT_2D - matmul(np.linalg.inv(vg_mat), v_trn_mat)
@@ -111,11 +107,9 @@ class TMM():
                                                np.linalg.inv(a_trn_mat), b_trn_mat))
         s_trn_21_mat = 2*np.linalg.inv(a_trn_mat)
         s_trn_22_mat = -matmul(np.linalg.inv(a_trn_mat), b_trn_mat)
-        s_trn_mat = np.concatenate((
-            np.concatenate((s_trn_11_mat, s_trn_12_mat), axis=1),
-            np.concatenate((s_trn_21_mat, s_trn_22_mat), axis=1)))
-        S_global = redheffer_star_prod(S_global,
-                                           s_trn_mat, UNIT_MAT_2D)
+        s_trn_mat = np.concatenate((np.concatenate((s_trn_11_mat, s_trn_12_mat), axis=1),
+                                    np.concatenate((s_trn_21_mat, s_trn_22_mat), axis=1)))
+        S_global = redheffer_star_prod(S_global, s_trn_mat, UNIT_MAT_2D)
         return S_global
 
     def __get_R_T(self, structure, source, S_global):
@@ -141,8 +135,7 @@ class TMM():
                 /((self.k_inc[2]/structure.UR1).real), 4)
         return R, T
 
-def main():
-    input_toml = get_input()
+def main(input_toml):
     source = Source(input_toml)
     structure = HomogeneousStructure(input_toml, source.norm_lambda)
     tmm = TMM()
@@ -150,4 +143,5 @@ def main():
     save_outputs(R, T)
 
 if __name__ == '__main__':
-    main()
+    input_toml = get_input()
+    main(input_toml)
