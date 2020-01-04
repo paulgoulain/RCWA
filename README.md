@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.com/Trave11er/RCWA.svg?branch=master)](https://travis-ci.com/Trave11er/RCWA)
+[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE)
+
 # RCWA
 Simple implementation of transfer matrix method (TMM) and
 rigorous coupled wave analysis (RCWA) based on the notes from Computational Electromagnetics Course by Raymond Rumpf: https://empossible.net/academics/emp5337/ (formerly: http://emlab.utep.edu/ee5390cem.htm)
