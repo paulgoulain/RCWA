@@ -1,6 +1,6 @@
 import numpy as np
 
-from _constants import DEGREES_TO_RAD
+from rcwa._constants import DEGREES_TO_RAD
 
 class Source:
     def __init__(self, input_toml):

@@ -3,7 +3,7 @@ import os
 import toml
 
 from test_common import make_source_dic
-from tmm import main
+from rcwa.tmm import main
 
 def make_layer_dic(epsilon, mu, thickness):
     return {'epsilon': epsilon, 'mu': mu, 'thickness': thickness}

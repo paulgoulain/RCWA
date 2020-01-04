@@ -3,10 +3,10 @@ import cmath
 
 import numpy as np
 
-from common import matmul, redheffer_star_prod, get_input
-from structure import HomogeneousStructure
-from source import Source
-from _constants import UNIT_MAT_2D
+from rcwa.common import matmul, redheffer_star_prod, get_input
+from rcwa.structure import HomogeneousStructure
+from rcwa.source import Source
+from rcwa._constants import UNIT_MAT_2D
 
 def save_outputs(R, T):
     with open('output.toml', 'w') as fid:

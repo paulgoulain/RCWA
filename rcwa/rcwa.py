@@ -1,9 +1,9 @@
 # coding: utf-8
 import numpy as np
 
-from common import matmul, redheffer_star_prod, get_input
-from source import Source
-from structure import PeriodicStructure
+from rcwa.common import matmul, redheffer_star_prod, get_input
+from rcwa.source import Source
+from rcwa.structure import PeriodicStructure
 
 class Harmonics():
     '''Keeps track of Fourier expansion paramters'''

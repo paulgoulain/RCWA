@@ -3,7 +3,7 @@ import os
 import toml
 
 from test_common import make_source_dic
-from rcwa import main
+from rcwa.rcwa import main
 
 def make_layer_dic(epsilon, thickness):
     return {'epsilon': epsilon, 'thickness': thickness}
@@ -17,7 +17,7 @@ def test_benchmark_1():
     source_dic = make_source_dic(2, 0.00001, 0.00001, [1, 0], [0, 0])
     periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 3, 'harmonics_y': 3}
     superstrate_dic = {'epsilon': 9.0}
-    layer_1_dic = make_layer_dic(os.path.join(os.getcwd(), 'test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
+    layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
     layer_2_dic = make_layer_dic(6, 0.3)
     substrate_dic = {'epsilon': 2.0}
     input_toml = {'layer': [layer_1_dic, layer_2_dic], 'source': source_dic,\
@@ -36,7 +36,6 @@ def test_benchmark_1():
     assert output_toml['R']['11'] == 0
     assert output_toml['R']['sum'] == 0.0986
 
-
 def test_benchmark_2():
     '''Test case from Computational Electromagnetics Course Assignment by Raymond Rumpf'''
     try:
@@ -46,7 +45,7 @@ def test_benchmark_2():
     source_dic = make_source_dic(2, 60.0, 30.0, [0.70711, 0.0], [0.0, 0.70711])
     periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 3, 'harmonics_y': 3}
     superstrate_dic = {'epsilon': 9.0}
-    layer_1_dic = make_layer_dic(os.path.join(os.getcwd(), 'test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
+    layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
     layer_2_dic = make_layer_dic(6, 0.3)
     substrate_dic = {'epsilon': 2.0}
     input_toml = {'layer': [layer_1_dic, layer_2_dic], 'source': source_dic,\
@@ -75,7 +74,7 @@ def test_benchmark_3():
     source_dic = make_source_dic(1, 0.00001, 0.00001, [1.0, 0.0], [0.0, 0.0])
     periodicity_dic = {'period_x': 2.5, 'period_y': 2.5, 'harmonics_x': 11, 'harmonics_y': 11}
     superstrate_dic = {'epsilon': 2.25}
-    layer_1_dic = make_layer_dic(os.path.join(os.getcwd(), 'test', 'rcwa_epsilon_benchmark_3.csv'), 1)
+    layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_3.csv'), 1)
     substrate_dic = {'epsilon': 1.0}
     input_toml = {'layer': [layer_1_dic], 'source': source_dic,\
             'superstrate': superstrate_dic, 'substrate': substrate_dic,\
