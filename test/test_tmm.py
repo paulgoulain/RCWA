@@ -3,7 +3,7 @@ import os
 import toml
 
 from test_common import make_source_dic
-from rcwa.tmm import main
+from rcwa.tmm import tmm_
 
 def make_layer_dic(epsilon, mu, thickness):
     return {'epsilon': epsilon, 'mu': mu, 'thickness': thickness}
@@ -22,7 +22,7 @@ def test_benchmark():
 
     input_toml = {'layer': [layer_1_dic, layer_2_dic], 'source': source_dic,\
             'superstrate': superstrate_dic, 'substrate': substrate_dic}
-    main(input_toml)
+    tmm_(input_toml)
     output_toml = toml.load('output.toml')
     assert output_toml['R']['00'] == 0.4403
     assert output_toml['T']['00'] == 0.5597

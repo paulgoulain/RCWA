@@ -15,7 +15,7 @@ Optionally, run the test suite by executing
 ```
 pytest
 ```
-To run a tmm computatation execute
+To run a tmm computation execute
 ``` 
 tmm path-to-input-toml-file
 ```

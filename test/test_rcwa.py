@@ -3,7 +3,7 @@ import os
 import toml
 
 from test_common import make_source_dic
-from rcwa.rcwa import main
+from rcwa.rcwa import rcwa_
 
 def make_layer_dic(epsilon, thickness):
     return {'epsilon': epsilon, 'thickness': thickness}
@@ -23,7 +23,7 @@ def test_benchmark_1():
     input_toml = {'layer': [layer_1_dic, layer_2_dic], 'source': source_dic,\
             'superstrate': superstrate_dic, 'substrate': substrate_dic,\
             'periodicity': periodicity_dic}
-    main(input_toml)
+    rcwa_(input_toml)
     output_toml = toml.load(os.path.join(os.getcwd(), 'output.toml'))
     assert output_toml['R']['-1-1'] == 0
     assert output_toml['R']['0-1'] == 0.0032
@@ -51,7 +51,7 @@ def test_benchmark_2():
     input_toml = {'layer': [layer_1_dic, layer_2_dic], 'source': source_dic,\
             'superstrate': superstrate_dic, 'substrate': substrate_dic,\
             'periodicity': periodicity_dic}
-    main(input_toml)
+    rcwa_(input_toml)
     output_toml = toml.load(os.path.join(os.getcwd(), 'output.toml'))
     assert output_toml['R']['-1-1'] == 0
     assert output_toml['R']['0-1'] == 0
@@ -79,7 +79,7 @@ def test_benchmark_3():
     input_toml = {'layer': [layer_1_dic], 'source': source_dic,\
             'superstrate': superstrate_dic, 'substrate': substrate_dic,\
             'periodicity': periodicity_dic}
-    main(input_toml)
+    rcwa_(input_toml)
     output_toml = toml.load(os.path.join(os.getcwd(), 'output.toml'))
     assert output_toml['T']['-1-1'] == 0.1281
     assert output_toml['T']['-11'] == 0.1281
