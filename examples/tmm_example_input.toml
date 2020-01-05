@@ -1,24 +1,24 @@
 # Input file for tmm.py. Define source, superstrate, substrate and as many layers as you want in between them. 
 
-# wavelength is in free space
-# te and tm amplitudes are complex numbers represented by list; they are renormalised inside the code to ensure a total amplitude of 1
-# epsilon and mu are relative permeability and permittivity
-# thickness is defined in the same units as wavelength
-
 [source]
+# wavelength is in free space
 wavelength = 6.2831853
+# theta and phi have usual definitions in spherical coordinates; in degrees
 theta = 57
 phi = 23
+# te and tm amplitudes are complex numbers - each list contains Re and Im parts
 te_amplitude = [1, 0]
 tm_amplitude = [0, 1]
 
 [superstrate]
+# epsilon and mu are relative permittivity and permeability
 epsilon = 1.4
 mu = 1.2
 
 [[layer]]
 epsilon = 2
 mu = 1
+# thickness is defined in the same units as wavelength
 thickness = 1.57079
 
 [[layer]]

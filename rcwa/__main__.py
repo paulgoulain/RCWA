@@ -1,11 +1,11 @@
 from rcwa.common import get_input
-import rcwa.rcwa as rcwa
-import rcwa.tmm as tmm
+from rcwa.rcwa import rcwa_
+from rcwa.tmm import tmm_
 
 def rcwa():
     input_toml = get_input()
-    rcwa.main(input_toml)
+    rcwa_(input_toml)
 
 def tmm():
     input_toml = get_input()
-    tmm.main(input_toml)
+    tmm_(input_toml)

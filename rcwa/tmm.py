@@ -135,7 +135,7 @@ class TMM():
                 /((self.k_inc[2]/structure.UR1).real), 4)
         return R, T
 
-def main(input_toml):
+def tmm_(input_toml):
     source = Source(input_toml)
     structure = HomogeneousStructure(input_toml, source.norm_lambda)
     tmm = TMM()
@@ -144,4 +144,4 @@ def main(input_toml):
 
 if __name__ == '__main__':
     input_toml = get_input()
-    main(input_toml)
+    tmm_(input_toml)

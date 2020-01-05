@@ -9,21 +9,18 @@ class Harmonics():
     '''Keeps track of Fourier expansion paramters'''
     def __init__(self, input_toml):
         # number of spatial harmonics along x and y
-        self.P_range = input_toml['periodicity']['harmonics_x']
-        self.Q_range = input_toml['periodicity']['harmonics_y']
-        assert(self.P_range%2 == 1 and self.Q_range%2 == 1),\
-                'harmonics_x and harmonics_y should both be odd' # TODO
-        self.P_high = int(np.floor(self.P_range/2))
+        self.P_high = input_toml['periodicity']['harmonics_x']
+        self.Q_high = input_toml['periodicity']['harmonics_y']
         self.P_low = -self.P_high
-        self.Q_high = int(np.floor(self.Q_range/2))
         self.Q_low = -self.Q_high
-        self.P_vec = np.linspace(self.P_low, self.P_high, self.P_range)
-        self.Q_vec = np.linspace(self.Q_low, self.Q_high, self.Q_range)
+        self.P_range = 2*self.P_high + 1
+        self.Q_range = 2*self.Q_high + 1
+        self.P_vec = np.arange(self.P_low, self.P_low + self.P_range)
+        self.Q_vec = np.arange(self.Q_low, self.Q_low + self.Q_range)
         self.Nharm = self.P_range*self.Q_range
 
 def save_outputs(P_vec, Q_vec, R, T, P_range, Nharm):
     np.set_printoptions(precision=4)
-
     with open('output.toml', 'w') as fid:
         fid.write('[R]\n')
         for i in range(0, Nharm):
@@ -39,7 +36,6 @@ def save_outputs(P_vec, Q_vec, R, T, P_range, Nharm):
 class RCWA():
     '''Calculates diffraction efficiencies of a period structure'''
     def compute(self, structure, source, harmonics):
-        structure.set_convmat(harmonics.P_range, harmonics.Q_range)
         S_global = self.__prepare(structure, source, harmonics)
         S_global = self.__compute_layers(structure, source, harmonics, S_global)
         S_global = self.__compute_superstrate(structure, harmonics, S_global)
@@ -63,16 +59,11 @@ class RCWA():
         kz_0_mat = np.zeros((Nharm, Nharm), dtype=complex)
         self.kz_ref_mat = np.zeros((Nharm, Nharm), dtype=complex)
         self.kz_trn_mat = np.zeros((Nharm, Nharm), dtype=complex)
-        # TODO vectorise + nicify
-        count_i = -1
-        for i in harmonics.P_vec:
-            count_i += 1
-            count_j = -1
-            for j in harmonics.Q_vec:
-                count_j += 1
-                pos = count_i*harmonics.P_range + count_j
-                self.kx_mat[pos, pos] = self.k_inc[0] - j*2*np.pi/(structure.Lx*source.K0)
-                self.ky_mat[pos, pos] = self.k_inc[1] - i*2*np.pi/(structure.Ly*source.K0)
+        for i, i_harm in enumerate(harmonics.P_vec):
+            for j, j_harm in enumerate(harmonics.Q_vec):
+                pos = i*harmonics.P_range + j
+                self.kx_mat[pos, pos] = self.k_inc[0] - j_harm*2*np.pi/(structure.Lx*source.K0)
+                self.ky_mat[pos, pos] = self.k_inc[1] - i_harm*2*np.pi/(structure.Ly*source.K0)
                 kz_0_mat[pos, pos] = np.conj(np.lib.scimath.sqrt(1 - (self.kx_mat[pos, pos])**2 - (self.ky_mat[pos, pos])**2))
                 self.kz_ref_mat[pos, pos] = -np.conj(np.lib.scimath.sqrt(np.conj(structure.ER2)*np.conj(structure.UR2)-\
                                             self.kx_mat[pos, pos]**2-self.ky_mat[pos, pos]**2))
@@ -245,10 +236,11 @@ class RCWA():
         T /= np.real(self.k_inc[2]/structure.UR1)
         return R, T
 
-def main(input_toml):
+def rcwa_(input_toml):
     source = Source(input_toml)
     structure = PeriodicStructure(input_toml, source.norm_lambda)
     harmonics = Harmonics(input_toml)
+    structure.set_convmat(harmonics.P_range, harmonics.Q_range)
     rcwa = RCWA()
     R, T = rcwa.compute(structure, source, harmonics)
     save_outputs(harmonics.P_vec, harmonics.Q_vec, R, T,\
@@ -256,4 +248,4 @@ def main(input_toml):
 
 if __name__ == '__main__':
     input_toml = get_input()
-    main(input_toml)
+    rcwa_(input_toml)

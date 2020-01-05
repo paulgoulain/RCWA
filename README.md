@@ -7,25 +7,26 @@ rigorous coupled wave analysis (RCWA) based on the notes from Computational Elec
 
 
 ## Getting Started
-Before running any calculations of your own it is recommended to run
-the test suite which check the output of a few tmm and rcwa runs. 
-Go to the root folder and execute
+Open a terminal in the root rcwa directory and execute
+```
+python setup.py install
+```
+Optionally, run the test suite by executing
 ```
 pytest
 ```
-
 To run a tmm computatation execute
 ``` 
-python tmm.py path-to-input-toml-file
+tmm path-to-input-toml-file
 ```
 Analogously, for a rcwa run
 ```
-python rcwa.py path-to-input-toml-file
+rcwa path-to-input-toml-file
 ```
 which will read the provided input files in .toml format.
 ### Dependencies
 
-numpy, toml, pytest
+python, numpy, toml, pytest
 
 ## Authors
 

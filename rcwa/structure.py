@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import numpy as np
 
@@ -67,12 +67,15 @@ class PeriodicStructure(HomogeneousStructure):
             self.L[i] = input_toml['layer'][i]['thickness']*norm_lambda
             self.ur_vec[i] = 1.0*np.ones((self.Nx, self.Ny))
             epsilon = input_toml['layer'][i]['epsilon']
+            # TODO complex epsilon
             if type(epsilon) == float or type(epsilon) == int:
                 self.er_vec[i] = epsilon*np.ones((self.Nx, self.Ny))
-            elif os.path.exists(epsilon):
-                self.er_vec[i] = np.loadtxt(epsilon, delimiter=',')
             else:
-                raise ValueError('Invalid epsilon for layer {} - should be a float or a path to .csv file'.format(i))
+                path = Path(epsilon)
+                if path.exists():
+                    self.er_vec[i] = np.loadtxt(path, delimiter=',')
+                else:
+                    raise ValueError('Invalid epsilon for layer {} - should be a float or a path to .csv file instead got {}'.format(i, epsilon))
 
     def set_convmat(self, P_range, Q_range):
         self.erc_vec = [None]*self.num_layers
@@ -83,6 +86,7 @@ class PeriodicStructure(HomogeneousStructure):
 
     @staticmethod
     def convmat(A, P, Q=1):
+        '''Calculate centered FFT of a complex matrix A truncated to P (Q) harmonics in x (y)'''
         Nx = A.shape[0]
         Ny = A.shape[1]
         assert(P <= Nx and Q <= Ny), 'Cannot have more Fourier pts than real-space pts'
@@ -93,7 +97,7 @@ class PeriodicStructure(HomogeneousStructure):
         q = range(-int(np.floor(Q/2)), int(np.floor(Q/2))+1)
 
         # do fft
-        A = np.fft.fft2(A)/(Nx*Ny) # TODO change depending on 1D or 2D
+        A = np.fft.fft2(A)/(Nx*Ny)
         A = np.fft.fftshift(A)
 
         # locate zeroth harmonics
@@ -102,7 +106,6 @@ class PeriodicStructure(HomogeneousStructure):
 
         # calc the convolutoiin matrix
         ret = np.zeros((Nharmonics, Nharmonics), dtype=complex)
-        # TODO vectorize
         for qrow in range(0, Q):
             for prow in range(0, P):
                 row = (qrow)*P + prow

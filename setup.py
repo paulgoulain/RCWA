@@ -1,4 +1,8 @@
+from pathlib import Path
 from setuptools import setup, find_packages
+
+cwd = Path(__file__).parent
+README = (cwd / "README.md").read_text()
 
 requirements = [
     'toml', 'numpy'
@@ -7,15 +11,19 @@ requirements = [
 setup(
     name='rcwa',
     version='0.0.1',
-	packages=find_packages(),
+    description='RCWA and TMM methods for Electromagnetic simulations',
+    long_description=README,
+    long_description_content_type='text/markdown',
+    packages=find_packages(),
+    url='https://github.com/Trave11er/RCWA',
     author='Gleb Siroki',
     author_email='g.shiroki@gmail.com',
-    description='rcwa',
-	install_requires = requirements,
-	entry_points={
+    license='MIT',
+    install_requires = requirements,
+    entry_points={
 	    'console_scripts': [
 		    'rcwa=rcwa.__main__:rcwa',
                     'tmm=rcwa.__main__:tmm'
-		]
-	},
+	    ]
+    },
 )

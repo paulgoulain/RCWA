@@ -15,7 +15,7 @@ def test_benchmark_1():
     except FileNotFoundError:
         pass
     source_dic = make_source_dic(2, 0.00001, 0.00001, [1, 0], [0, 0])
-    periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 3, 'harmonics_y': 3}
+    periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 1, 'harmonics_y': 1}
     superstrate_dic = {'epsilon': 9.0}
     layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
     layer_2_dic = make_layer_dic(6, 0.3)
@@ -43,7 +43,7 @@ def test_benchmark_2():
     except FileNotFoundError:
         pass
     source_dic = make_source_dic(2, 60.0, 30.0, [0.70711, 0.0], [0.0, 0.70711])
-    periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 3, 'harmonics_y': 3}
+    periodicity_dic = {'period_x': 1.75, 'period_y': 1.5, 'harmonics_x': 1, 'harmonics_y': 1}
     superstrate_dic = {'epsilon': 9.0}
     layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_1_and_2.csv'), 0.5)
     layer_2_dic = make_layer_dic(6, 0.3)
@@ -72,7 +72,7 @@ def test_benchmark_3():
     except FileNotFoundError:
         pass
     source_dic = make_source_dic(1, 0.00001, 0.00001, [1.0, 0.0], [0.0, 0.0])
-    periodicity_dic = {'period_x': 2.5, 'period_y': 2.5, 'harmonics_x': 11, 'harmonics_y': 11}
+    periodicity_dic = {'period_x': 2.5, 'period_y': 2.5, 'harmonics_x': 5, 'harmonics_y': 5}
     superstrate_dic = {'epsilon': 2.25}
     layer_1_dic = make_layer_dic(os.path.join('test', 'rcwa_epsilon_benchmark_3.csv'), 1)
     substrate_dic = {'epsilon': 1.0}
